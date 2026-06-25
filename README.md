@@ -146,7 +146,7 @@ If Claude is not configured, keep `PROVIDER=rule_based` for the free MVP.
 - No analytics dashboard, payments, team workspaces, or CRM integrations are included.
 - The generated brief is a strong starting point, not final copy.
 
-## Suggested next paid upgrades
+## Next paid upgrades
 
 - Claude/OpenAI provider for deeper follow-ups, better synthesis, and richer voice-of-customer extraction.
 - PDF, Google Docs, Notion, or CRM export adapters.
@@ -155,13 +155,4 @@ If Claude is not configured, keep `PROVIDER=rule_based` for the free MVP.
 - Competitor and audience research workflows.
 - Paid analytics for interview completion and brief quality.
 
-## Suggested Upwork demo script
 
-1. Open the Space and point out that no paid API key is required.
-2. Show the polished first prompt and explain the app is copywriting-specific.
-3. Enter one thin answer to demonstrate an adaptive follow-up.
-4. Enter a stronger answer with an exact phrase in quotes to show phrase preservation.
-5. Click **Generate / Download Markdown Brief** before finishing to demonstrate partial-brief support.
-6. Show the **Missing Information** section.
-7. Click **Reset Interview** to show a clean session reset.
-8. Explain extension points: Claude provider, persistence, export adapters, and additional templates.
