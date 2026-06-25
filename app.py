@@ -1,9 +1,9 @@
 """Gradio UI for CopyBrief Interview Agent."""
 from __future__ import annotations
 
+import inspect
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import gradio as gr
 
@@ -15,6 +15,12 @@ from src.models import InterviewState
 settings = get_settings()
 configure_logging(settings.log_level)
 controller = InterviewController()
+
+
+def chatbot_message_type_kwargs() -> dict[str, str]:
+    if "type" in inspect.signature(gr.Chatbot).parameters:
+        return {"type": "messages"}
+    return {}
 
 
 def start() -> tuple[list[dict[str, str]], InterviewState, str, str | None]:
@@ -41,7 +47,7 @@ def make_brief_file(state: InterviewState | None) -> tuple[str, str]:
 
 with gr.Blocks(title="CopyBrief Interview Agent") as demo:
     gr.Markdown("# CopyBrief Interview Agent\nFree, rule-based, Claude-ready copywriting discovery interviews.")
-    chatbot = gr.Chatbot(label="Interview")
+    chatbot = gr.Chatbot(label="Interview", **chatbot_message_type_kwargs())
     state = gr.State()
     progress = gr.Markdown()
     msg = gr.Textbox(label="Your answer", placeholder="Type your response and press Enter")
