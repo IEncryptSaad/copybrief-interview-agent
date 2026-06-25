@@ -6,41 +6,58 @@ import re
 
 from src.brief_generator import generate_brief
 from src.config import get_settings
-from src.discovery_schema import DISCOVERY_SECTIONS
+from src.discovery_schema import DISCOVERY_SECTIONS, DiscoverySection, get_discovery_sections
+from src.exporters import BriefExporter, MarkdownExporter
 from src.models import InterviewState, InterviewTurn, SectionAnswer
-from src.providers.anthropic_provider import AnthropicProvider
 from src.providers.base import InterviewProvider
-from src.providers.rule_based import RuleBasedProvider
+from src.providers.registry import build_provider as build_registered_provider
+from src.storage import DisabledStorage, InterviewStorage, LocalJsonStorage
 
 logger = logging.getLogger(__name__)
 
 
 def build_provider() -> InterviewProvider:
+    return build_registered_provider(get_settings())
+
+
+def build_storage() -> InterviewStorage:
     settings = get_settings()
-    if settings.effective_provider == "anthropic":
-        return AnthropicProvider(settings.anthropic_api_key)
-    return RuleBasedProvider()
+    if not settings.features.enable_persistence:
+        return DisabledStorage()
+    if settings.storage_backend == "local_json":
+        return LocalJsonStorage(settings.local_storage_path)
+    return DisabledStorage()
 
 
 class InterviewController:
-    def __init__(self, provider: InterviewProvider | None = None) -> None:
+    def __init__(
+        self,
+        provider: InterviewProvider | None = None,
+        storage: InterviewStorage | None = None,
+        exporter: BriefExporter | None = None,
+        template_key: str = "copywriting",
+    ) -> None:
         self.provider = provider or build_provider()
+        self.storage = storage or build_storage()
+        self.exporter = exporter or MarkdownExporter()
+        self.template_key = template_key
+        self.sections: list[DiscoverySection] = get_discovery_sections(template_key)
 
     def initial_state(self) -> InterviewState:
         return InterviewState()
 
     def first_message(self) -> str:
-        return "Hi! I’ll help turn your client discovery into a copywriting brief. " + DISCOVERY_SECTIONS[0].question
+        return "Hi! I’ll help turn your client discovery into a copywriting brief. " + self.sections[0].question
 
     def progress(self, state: InterviewState) -> str:
-        return f"{len(state.completed_sections)}/{len(DISCOVERY_SECTIONS)} sections complete"
+        return f"{len(state.completed_sections)}/{len(self.sections)} sections complete"
 
     def handle_answer(self, answer: str, state: InterviewState | None = None) -> InterviewTurn:
         state = state or self.initial_state()
         if state.finished:
-            return InterviewTurn(message="The interview is complete. You can generate the brief or reset to start over.", state=state, progress=self.progress(state), brief=generate_brief(state))
+            return InterviewTurn(message="The interview is complete. You can generate the brief or reset to start over.", state=state, progress=self.progress(state), brief=self.generate_brief(state))
 
-        section = DISCOVERY_SECTIONS[state.current_index]
+        section = self.sections[state.current_index]
         section_answer = state.sections.get(section.key, SectionAnswer(section_key=section.key))
         section_answer.answers.append(answer.strip())
         combined = section_answer.combined_answer
@@ -58,16 +75,24 @@ class InterviewController:
         if section.key not in state.completed_sections:
             state.completed_sections.append(section.key)
         state.current_index += 1
-        if state.current_index >= len(DISCOVERY_SECTIONS):
+        if state.current_index >= len(self.sections):
             state.finished = True
-            brief = generate_brief(state)
+            brief = self.generate_brief(state)
             return InterviewTurn(message="Great — the discovery interview is complete. Click generate/download brief to save the Markdown brief.", state=state, progress=self.progress(state), brief=brief)
 
-        next_question = DISCOVERY_SECTIONS[state.current_index].question
+        next_question = self.sections[state.current_index].question
         return InterviewTurn(message=next_question, state=state, progress=self.progress(state))
 
     def generate_brief(self, state: InterviewState) -> str:
-        return generate_brief(state)
+        brief = generate_brief(state, self.sections)
+        self.storage.save_brief("latest", brief)
+        return self.exporter.export_text(brief)
+
+    def save_session(self, session_id: str, state: InterviewState) -> None:
+        self.storage.save_session(session_id, state)
+
+    def load_session(self, session_id: str) -> InterviewState | None:
+        return self.storage.load_session(session_id)
 
     @staticmethod
     def _capture_phrases(answer: str, state: InterviewState) -> None:

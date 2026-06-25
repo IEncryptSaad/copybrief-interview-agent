@@ -41,7 +41,7 @@ def make_brief_file(state: InterviewState | None) -> tuple[str, str]:
 
 with gr.Blocks(title="CopyBrief Interview Agent") as demo:
     gr.Markdown("# CopyBrief Interview Agent\nFree, rule-based, Claude-ready copywriting discovery interviews.")
-    chatbot = gr.Chatbot(label="Interview", type="messages")
+    chatbot = gr.Chatbot(label="Interview")
     state = gr.State()
     progress = gr.Markdown()
     msg = gr.Textbox(label="Your answer", placeholder="Type your response and press Enter")

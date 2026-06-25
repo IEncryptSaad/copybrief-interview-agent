@@ -1,7 +1,7 @@
 """Markdown brief generation."""
 from __future__ import annotations
 
-from src.discovery_schema import DISCOVERY_SECTIONS
+from src.discovery_schema import DISCOVERY_SECTIONS, DiscoverySection
 from src.models import InterviewState
 
 
@@ -17,8 +17,9 @@ def _bullets(text: str) -> str:
     return "\n".join(f"- {p}" for p in parts[:6])
 
 
-def generate_brief(state: InterviewState) -> str:
-    missing = [s.label for s in DISCOVERY_SECTIONS if not state.sections.get(s.key) or s.key not in state.completed_sections]
+def generate_brief(state: InterviewState, sections: list[DiscoverySection] | None = None) -> str:
+    active_sections = sections or DISCOVERY_SECTIONS
+    missing = [s.label for s in active_sections if not state.sections.get(s.key) or s.key not in state.completed_sections]
     offer = _answer(state, "offer")
     audience = _answer(state, "audience")
     pain = _answer(state, "pain_points")

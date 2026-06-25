@@ -11,7 +11,7 @@ class DiscoverySection:
     question: str
 
 
-DISCOVERY_SECTIONS: list[DiscoverySection] = [
+COPYWRITING_DISCOVERY_SECTIONS: list[DiscoverySection] = [
     DiscoverySection("offer", "Offer", "To start, what are you selling, and what does the client get?"),
     DiscoverySection("audience", "Audience / Avatar", "Who is the ideal customer or buyer for this offer?"),
     DiscoverySection("pain_points", "Pain Points", "What problems, frustrations, or urgent pains are they dealing with now?"),
@@ -26,4 +26,20 @@ DISCOVERY_SECTIONS: list[DiscoverySection] = [
     DiscoverySection("constraints", "Constraints", "Any deadlines, legal claims to avoid, required phrases, channels, or other constraints?"),
 ]
 
+
+DISCOVERY_TEMPLATES: dict[str, list[DiscoverySection]] = {
+    "copywriting": COPYWRITING_DISCOVERY_SECTIONS,
+}
+
+
+def get_discovery_sections(template_key: str = "copywriting") -> list[DiscoverySection]:
+    """Return sections for the active interview template.
+
+    Future templates (support, research, sales, internal assistants, domain-specific
+    agents) can be added to DISCOVERY_TEMPLATES without changing controllers.
+    """
+    return DISCOVERY_TEMPLATES.get(template_key, COPYWRITING_DISCOVERY_SECTIONS)
+
+
+DISCOVERY_SECTIONS = get_discovery_sections()
 SECTION_BY_KEY = {section.key: section for section in DISCOVERY_SECTIONS}
