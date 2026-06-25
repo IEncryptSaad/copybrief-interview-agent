@@ -47,19 +47,32 @@ class InterviewController:
         return InterviewState()
 
     def first_message(self) -> str:
-        return "Hi! I’ll help turn your client discovery into a copywriting brief. " + self.sections[0].question
+        return (
+            "Hi — I’m CopyBrief, your copywriting discovery assistant. I’ll ask focused questions about the offer, "
+            "buyer, pain points, proof, voice, objections, and CTA, then turn your answers into a practical Markdown brief. "
+            "Use the client's exact wording when you have it; I’ll preserve strong phrases for hooks and messaging. "
+            f"{self.sections[0].question}"
+        )
 
     def progress(self, state: InterviewState) -> str:
         return f"{len(state.completed_sections)}/{len(self.sections)} sections complete"
 
     def handle_answer(self, answer: str, state: InterviewState | None = None) -> InterviewTurn:
         state = state or self.initial_state()
+        answer = (answer or "").strip()
+        if not answer:
+            logger.info("Ignoring empty answer in controller")
+            return InterviewTurn(
+                message="Please share a short answer, even if it is rough. A few specific details are enough to keep building the brief.",
+                state=state,
+                progress=self.progress(state),
+            )
         if state.finished:
             return InterviewTurn(message="The interview is complete. You can generate the brief or reset to start over.", state=state, progress=self.progress(state), brief=self.generate_brief(state))
 
         section = self.sections[state.current_index]
         section_answer = state.sections.get(section.key, SectionAnswer(section_key=section.key))
-        section_answer.answers.append(answer.strip())
+        section_answer.answers.append(answer)
         combined = section_answer.combined_answer
         evaluation = self.provider.evaluate_answer(combined)
         section_answer.evaluation = evaluation
@@ -84,6 +97,7 @@ class InterviewController:
         return InterviewTurn(message=next_question, state=state, progress=self.progress(state))
 
     def generate_brief(self, state: InterviewState) -> str:
+        logger.info("Generating brief with %s completed sections", len(state.completed_sections))
         brief = generate_brief(state, self.sections)
         self.storage.save_brief("latest", brief)
         return self.exporter.export_text(brief)

@@ -17,9 +17,26 @@ def _bullets(text: str) -> str:
     return "\n".join(f"- {p}" for p in parts[:6])
 
 
+def _missing_items(state: InterviewState, sections: list[DiscoverySection]) -> list[str]:
+    missing: list[str] = []
+    for section in sections:
+        answer = state.sections.get(section.key)
+        if not answer or not answer.combined_answer:
+            missing.append(f"{section.label}: no answer captured yet")
+        elif section.key not in state.completed_sections:
+            missing.append(f"{section.label}: partial answer captured; needs confirmation or more detail")
+    return missing
+
+
+def _safe_snippet(text: str, fallback: str, limit: int = 100) -> str:
+    if not text or text == "_Missing._":
+        return fallback
+    return text[:limit]
+
+
 def generate_brief(state: InterviewState, sections: list[DiscoverySection] | None = None) -> str:
     active_sections = sections or DISCOVERY_SECTIONS
-    missing = [s.label for s in active_sections if not state.sections.get(s.key) or s.key not in state.completed_sections]
+    missing = _missing_items(state, active_sections)
     offer = _answer(state, "offer")
     audience = _answer(state, "audience")
     pain = _answer(state, "pain_points")
@@ -27,17 +44,25 @@ def generate_brief(state: InterviewState, sections: list[DiscoverySection] | Non
     phrases = state.exact_phrases or []
 
     angles = [
-        f"Position the offer around moving from {pain[:120]} to {transformation[:120]}.",
-        "Use proof and risk reversal close to the CTA to reduce hesitation.",
-        "Mirror the client's own language in headlines and lead sections.",
+        f"Position the offer around moving from {_safe_snippet(pain, 'the buyer’s current pain')} to {_safe_snippet(transformation, 'the desired result')}.",
+        "Use proof, specificity, and risk reversal close to the CTA to reduce hesitation.",
+        "Mirror the client's own language in headlines, lead sections, bullets, and CTA microcopy.",
     ]
     hooks = [
-        f"Still dealing with {pain[:90]}?",
-        f"A clearer path to {transformation[:90]}",
-        f"For {audience[:90]} who want a better way",
+        f"Still dealing with {_safe_snippet(pain, 'the same costly problem', 90)}?",
+        f"A clearer path to {_safe_snippet(transformation, 'the result your buyer wants', 90)}",
+        f"For {_safe_snippet(audience, 'the right buyer', 90)} who want a better way",
     ]
 
+    completion_note = (
+        "This brief is based on a completed discovery interview."
+        if not missing
+        else "This is a partial brief. It is usable for an MVP/demo, but the Missing Information section lists what to confirm before final copy."
+    )
+
     return f"""# Copywriting Brief
+
+> {completion_note}
 
 ## Business Summary
 {offer}

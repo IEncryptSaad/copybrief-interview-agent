@@ -15,3 +15,11 @@ def test_interview_advances_after_good_answer():
     turn = controller.handle_answer("We sell a $500 launch strategy intensive for solo SaaS founders who need a clear offer, landing page angle, and launch emails within 10 days because they are stuck rewriting copy.", state)
     assert state.current_index == 1
     assert "ideal customer" in turn.message.lower()
+
+
+def test_controller_handles_empty_answer_without_advancing():
+    controller = InterviewController()
+    state = controller.initial_state()
+    turn = controller.handle_answer("   ", state)
+    assert state.current_index == 0
+    assert "short answer" in turn.message.lower()

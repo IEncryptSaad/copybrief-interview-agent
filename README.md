@@ -1,20 +1,10 @@
 # CopyBrief Interview Agent
 
-CopyBrief Interview Agent is a deployable MVP for adaptive copywriting client interviews. It runs a chat-style intake, evaluates each client answer, asks targeted follow-up questions when answers are thin or vague, and generates a structured Markdown copywriting brief.
+CopyBrief Interview Agent is a Hugging Face Spaces-ready MVP for adaptive copywriting client discovery. It runs a chat-style intake, asks copywriter-specific follow-ups when answers are thin, preserves useful client phrases, and generates a structured Markdown copywriting brief that remains useful even when the interview is incomplete.
 
-The current MVP is **free and rule-based**. It requires no paid APIs, no database, and no external paid services. The code is also **Claude-ready** through a provider interface so a paid LLM adapter can be added later without rewriting the interview flow.
+The default app is **free, local, and rule-based**: no paid APIs, no required secrets, no database, no authentication, and no analytics. The architecture is intentionally extensible so Claude or another LLM can be added later behind the provider interface without changing the core interview flow.
 
-## Features
-
-- Conversational Gradio interview UI.
-- Copywriting discovery across offer, audience, pains, transformation, story, objections, proof, voice, competitors, CTA, guarantees, and constraints.
-- Rule-based answer quality scoring: strong, medium, thin, vague, or missing.
-- Targeted follow-up questions for incomplete answers.
-- Progress tracking and exact phrase capture.
-- Markdown brief generation with recommended angles and hooks.
-- Modular Python architecture with tests, logging, configuration, and safe error boundaries.
-
-## Run locally
+## Quickstart
 
 ```bash
 python -m venv .venv
@@ -23,118 +13,143 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open the local Gradio URL printed in your terminal.
+Open the local Gradio URL printed in your terminal.
 
-## Run tests
+## Local run command
+
+```bash
+python app.py
+```
+
+## Test command
 
 ```bash
 pytest
 ```
 
-## Deploy to Hugging Face Spaces
+## Hugging Face Spaces deployment
 
 1. Create a new Hugging Face Space.
-2. Choose **Gradio** as the SDK.
+2. Select **Gradio** as the SDK.
 3. Push this repository to the Space.
-4. Hugging Face will install `requirements.txt` and run `app.py`.
-5. No secrets are required for the default rule-based MVP.
+4. Spaces installs the minimal `requirements.txt` automatically.
+5. Spaces runs `app.py` with `python app.py`.
+6. Do **not** add secrets for the default demo. `PROVIDER=rule_based` works without API keys.
+7. Optional: copy `.env.example` values into Space variables only when you need to override defaults.
 
-## Optional Claude / Anthropic path
+## Requirements and secrets
 
-The app includes `src/providers/anthropic_provider.py` as a safe optional adapter. By default, `PROVIDER=rule_based` and no Anthropic calls are made.
+`requirements.txt` intentionally stays small for free-tier deployability:
 
-To prepare for a future Claude-backed version:
+- `gradio` for the UI
+- `pydantic` for state models
+- `pytest` for tests
+- `python-dotenv` for optional local `.env` files
+
+No secret is required for default operation. `.env.example` clearly marks Anthropic/Claude and persistence-related settings as optional paid or premium-ready features.
+
+## Features
+
+- Gradio chatbot UI using `type="messages"` when supported.
+- Polished opening assistant message for copywriting discovery.
+- Sections for offer, audience, pains, transformation, story, objections, proof, voice, competitors, CTA, guarantees, and constraints.
+- Rule-based answer quality scoring and targeted follow-up questions.
+- Exact phrase capture for quotable client language.
+- Partial-brief generation at any point in the interview.
+- Missing-information list in every generated brief.
+- Reset flow that clears chat state, progress, brief preview, and download file.
+- Concise logging around startup, reset, answers, and brief generation.
+- Safe UI error boundaries that avoid exposing stack traces to users.
+
+## Architecture overview
+
+```text
+app.py                         Gradio UI and UI-safe error handling
+src/config.py                  environment configuration
+src/logging_config.py          standard library logging setup
+src/models.py                  Pydantic state and result models
+src/discovery_schema.py        copywriting discovery sections and questions
+src/interview_controller.py    interview orchestration
+src/answer_evaluator.py        answer quality scoring
+src/followup_generator.py      targeted follow-up generation
+src/brief_generator.py         Markdown brief generation and missing-info handling
+src/providers/base.py          provider interface
+src/providers/rule_based.py    free default provider
+src/providers/anthropic_provider.py optional future Claude adapter placeholder
+src/storage.py                 disabled, memory, and local JSON storage adapters
+tests/                         pytest coverage for core behavior and UI regressions
+```
+
+The UI is thin. Product logic lives in controller, provider, evaluator, follow-up, and brief-generation modules so the app can later be wrapped with an API, persistence layer, or paid LLM provider.
+
+## Extension points
+
+### Add a new LLM provider
+
+1. Implement `InterviewProvider` from `src/providers/base.py`.
+2. Register it in `src/providers/registry.py`.
+3. Add optional config in `src/config.py` / `.env.example`.
+4. Set `PROVIDER=your_provider`.
+
+### Add storage
+
+1. Implement `InterviewStorage` from `src/storage.py`.
+2. Add a `build_storage()` branch in `src/interview_controller.py`.
+3. Keep `DisabledStorage` as the default fallback so the free demo still works.
+
+### Add export formats
+
+1. Implement `BriefExporter` from `src/exporters.py`.
+2. Inject it into `InterviewController(exporter=...)`.
+3. Keep Markdown as the default free option.
+
+### Add interview templates
+
+1. Add a list of `DiscoverySection` objects in `src/discovery_schema.py`.
+2. Register it in `DISCOVERY_TEMPLATES`.
+3. Instantiate `InterviewController(template_key="your_template")`.
+
+## Optional Claude integration
+
+The repository includes `src/providers/anthropic_provider.py` as an optional Claude-ready adapter path. The current MVP does not require Anthropic and does not make paid calls by default.
+
+For a future Claude-backed version:
 
 ```bash
 cp .env.example .env
 # edit .env
 PROVIDER=anthropic
+ENABLE_CLAUDE=true
 ANTHROPIC_API_KEY=your_key_here
+python app.py
 ```
 
-If `ANTHROPIC_API_KEY` is missing, the app automatically keeps using the free rule-based provider. The current adapter intentionally preserves rule-based behavior until a real SDK-backed implementation is added.
+If Claude is not configured, keep `PROVIDER=rule_based` for the free MVP.
 
-## Architecture overview
+## Known limitations
 
-```text
-app.py                         Gradio UI only
-src/config.py                  environment configuration
-src/logging_config.py          standard library logging setup
-src/models.py                  Pydantic state and result models
-src/discovery_schema.py        discovery sections and starter questions
-src/interview_controller.py    interview flow orchestration
-src/answer_evaluator.py        answer quality scoring
-src/followup_generator.py      targeted follow-up generation
-src/brief_generator.py         Markdown brief generation
-src/providers/base.py          provider interface
-src/providers/rule_based.py    free default provider
-src/providers/anthropic_provider.py optional future adapter
-tests/                         pytest coverage for core behavior
-```
+- Rule-based evaluation is deterministic and useful for an MVP, but less nuanced than a real LLM interviewer.
+- No database or account system is included; sessions are in-memory unless a future storage adapter is enabled.
+- Markdown is the only default export format.
+- No analytics dashboard, payments, team workspaces, or CRM integrations are included.
+- The generated brief is a strong starting point, not final copy.
 
-The UI does not own interview logic. Answer evaluation, follow-up generation, interview orchestration, and brief generation are separated so each component can evolve independently.
+## Suggested next paid upgrades
 
+- Claude/OpenAI provider for deeper follow-ups, better synthesis, and richer voice-of-customer extraction.
+- PDF, Google Docs, Notion, or CRM export adapters.
+- Saved client projects with Supabase/Postgres persistence.
+- Authentication and team workspaces.
+- Competitor and audience research workflows.
+- Paid analytics for interview completion and brief quality.
 
-## Extension architecture
+## Suggested Upwork demo script
 
-The MVP keeps the Gradio app thin and routes all product logic through core services that can later be wrapped by FastAPI or another API layer:
-
-- `app.py` owns Gradio widgets and calls `InterviewController` only.
-- `src/interview_controller.py` orchestrates interview state, provider calls, storage, and exporting.
-- `src/providers/registry.py` selects the active provider from config.
-- `src/storage.py` defines persistence ports plus disabled, memory, and local JSON adapters.
-- `src/exporters.py` defines brief exporters and the default Markdown exporter.
-- `src/discovery_schema.py` contains data-driven interview templates.
-
-### Feature flags
-
-All premium-ready flags default to `false`, keeping the current app free and local:
-
-| Flag | Current behavior | Future use |
-| --- | --- | --- |
-| `ENABLE_CLAUDE` | Off; rule-based provider remains default. | Allow a paid Claude adapter when `ANTHROPIC_API_KEY` is present. |
-| `ENABLE_PERSISTENCE` | Off; storage is a safe no-op. | Enable local JSON now or Supabase/Postgres later. |
-| `ENABLE_ANALYTICS` | Off; no tracking. | Add paid analytics integrations later. |
-| `ENABLE_AUTH` | Off; no auth. | Add auth/team workspaces later. |
-| `ENABLE_PDF_EXPORT` | Off; Markdown export only. | Add PDF export behind an exporter adapter. |
-
-### How to add a new LLM provider
-
-1. Create a class implementing `InterviewProvider` from `src/providers/base.py`.
-2. Register it in `src/providers/registry.py`, for example `registry.register("openai", lambda settings: OpenAIProvider(...))`.
-3. Add config/env settings as needed.
-4. Set `PROVIDER=openai`. `InterviewController` does not need to change.
-
-### How to add a new storage adapter
-
-1. Implement `InterviewStorage` from `src/storage.py`.
-2. Add a branch in `build_storage()` for a new `STORAGE_BACKEND` value.
-3. Keep `DisabledStorage` as the fallback so the MVP still runs without persistence.
-
-### How to add a new export format
-
-1. Implement `BriefExporter` from `src/exporters.py`.
-2. Inject it into `InterviewController(exporter=...)` or add a small exporter factory when multiple formats are enabled.
-3. Keep `MarkdownExporter` as the default free option.
-
-### How to add a new interview template
-
-1. Add another list of `DiscoverySection` objects in `src/discovery_schema.py`.
-2. Register it in `DISCOVERY_TEMPLATES`, such as `"customer_support"`, `"research"`, `"sales"`, `"internal_assistant"`, or a domain-specific key.
-3. Instantiate `InterviewController(template_key="your_template")`.
-
-### Free now vs premium-ready later
-
-Free now: Gradio UI, rule-based evaluation, follow-ups, exact phrase capture, Markdown brief generation, disabled/in-memory/local JSON storage adapters, and tests.
-
-Premium-ready later: Claude/OpenAI/Gemini/OpenRouter/local model adapters, Supabase/Postgres persistence, PDF/Google Docs/Notion/CRM/email exporters, authentication, analytics, payments, and domain-specific interview templates.
-
-## Future upgrade path
-
-- Replace or augment rule-based evaluation with an LLM provider.
-- Add persistence for saved interviews.
-- Add export formats such as PDF or Google Docs.
-- Add paid features like advanced persona research, competitor analysis, or multi-brief projects.
-- Add authentication and team workspaces.
-
-These upgrades should fit behind the existing provider and controller boundaries without major refactoring.
+1. Open the Space and point out that no paid API key is required.
+2. Show the polished first prompt and explain the app is copywriting-specific.
+3. Enter one thin answer to demonstrate an adaptive follow-up.
+4. Enter a stronger answer with an exact phrase in quotes to show phrase preservation.
+5. Click **Generate / Download Markdown Brief** before finishing to demonstrate partial-brief support.
+6. Show the **Missing Information** section.
+7. Click **Reset Interview** to show a clean session reset.
+8. Explain extension points: Claude provider, persistence, export adapters, and additional templates.
