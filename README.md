@@ -1,3 +1,14 @@
+---
+title: CopyBrief Interview Agent
+emoji: 📝
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 4.44.1
+app_file: app.py
+pinned: false
+---
+
 # CopyBrief Interview Agent
 
 CopyBrief Interview Agent is a Hugging Face Spaces-ready MVP for adaptive copywriting client discovery. It runs a chat-style intake, asks copywriter-specific follow-ups when answers are thin, preserves useful client phrases, and generates a structured Markdown copywriting brief that remains useful even when the interview is incomplete.
