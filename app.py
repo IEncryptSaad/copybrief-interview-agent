@@ -1,7 +1,6 @@
 """Gradio UI for CopyBrief Interview Agent."""
 from __future__ import annotations
 
-import inspect
 import logging
 import tempfile
 from pathlib import Path
@@ -19,12 +18,6 @@ logger = logging.getLogger(__name__)
 controller = InterviewController()
 
 EMPTY_MESSAGE_RESPONSE = "No problem — send a few words when you're ready. If you're unsure, share your best guess and I'll help turn it into useful copy brief inputs."
-
-
-def chatbot_message_type_kwargs() -> dict[str, str]:
-    if "type" in inspect.signature(gr.Chatbot).parameters:
-        return {"type": "messages"}
-    return {}
 
 
 def start() -> tuple[list[dict[str, str]], InterviewState, str, str | None]:
@@ -73,7 +66,7 @@ def make_brief_file(state: InterviewState | None) -> tuple[str, str | None]:
 
 with gr.Blocks(title="CopyBrief Interview Agent") as demo:
     gr.Markdown("# CopyBrief Interview Agent\nFree, rule-based, Claude-ready copywriting discovery interviews.")
-    chatbot = gr.Chatbot(label="Interview", **chatbot_message_type_kwargs())
+    chatbot = gr.Chatbot(label="Interview", type="messages")
     state = gr.State()
     progress = gr.Markdown()
     msg = gr.Textbox(label="Your answer", placeholder="Type your response and press Enter")
@@ -89,4 +82,4 @@ with gr.Blocks(title="CopyBrief Interview Agent") as demo:
     brief_btn.click(make_brief_file, inputs=[state], outputs=[brief_md, brief_file])
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=7860)
